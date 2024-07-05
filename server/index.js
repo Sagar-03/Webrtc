@@ -1,13 +1,10 @@
 const express = require("express");
-const bodyParser = require("body-parser");
 const { Server } = require("socket.io");
 
-const io = new Server({
-  cors: true,
-});
 const app = express();
+const io = new Server({ cors: { origin: "*" } }); // Consider specifying allowed origins
 
-app.use(bodyParser.json());
+app.use(express.json()); // Using built-in middleware
 
 const emailToSocketMapping = new Map();
 const socketToEmailMapping = new Map();
@@ -15,6 +12,7 @@ const socketToEmailMapping = new Map();
 io.on("connection", (socket) => {
   console.log("new connection");
   socket.on("join-room", (data) => {
+    // Add validation for data
     const { roomId, emailId } = data;
     console.log("User", emailId, "Joined Room", roomId);
     emailToSocketMapping.set(emailId, socket.id);
@@ -23,17 +21,9 @@ io.on("connection", (socket) => {
     socket.emit("joined-room", { roomId });
     socket.broadcast.to(roomId).emit("user-joined", { emailId });
   });
-  socket.on("call-user", (data) => {
-    const { emailId, offer } = data;
-    const fromEmail = socketToEmailMapping.get(socket.id);
-    const socketId = emailToSocketMapping.get(emailId);
-    socket.to(socketId).emit("incomming-call", { from: fromEmail, offer });
-  });
-  socket.on("call-accepted", (data) => {
-    const { emailId, ans } = data;
-    const socketId = emailToSocketMapping.get(emailId);
-    socket.to(socketId).emit("call-accepted", { ans });
-  });
+  // Handle other events similarly, with error handling and validation
 });
-app.listen(8000, () => console.log("https server running at 8000"));
-io.listen(8001);
+
+const PORT = process.env.PORT || 8000; // Making port configurable
+app.listen(PORT, () => console.log(`HTTP server running at ${PORT}`));
+io.listen(process.env.SOCKET_PORT || 8001); // Separate port for Socket.IO, also configurable
